@@ -25,20 +25,19 @@ def text_words(text):
 class NERInfer(Infer):
     def process(self, inputs):
         for input in inputs:
-            input = input.to(self.model.device)
             pred = self.model(input.word_id, input.shape_id, input.pad_mask)
-            yield from self.model.ner.crf.decode(pred, ~input.pad_mask)
+            yield from [self.model.head.crf.decode(pred, ~input.pad_mask), pred]
 
     def __call__(self, texts):
         items = [text_words(_) for _ in texts]
         inputs = self.encoder(items)
-        preds = self.process(inputs)
+        preds, proba = self.process(inputs)
         preds = self.decoder(preds)
 
         for text, item, pred in zip(texts, items, preds):
             tuples = zip(item, pred)
             markup = BIOMarkup.from_tuples(tuples)
-            yield markup.to_span(text)
+            yield str(markup.to_span(text)) +" "+ str(proba)
 
 
 class MorphInfer(Infer):
